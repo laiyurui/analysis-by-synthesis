@@ -17,7 +17,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
         targets = targets.to(device)
         optimizer.zero_grad()
         logits, recs, mus, logvars = model(data)
-        loss = abs_loss_function(data, targets, recs, mus, logvars, args.beta)
+        loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta)
         loss.backward()
         optimizer.step()
 
@@ -30,8 +30,15 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
 
         if writer is not None:
             step = (epoch - 1) * len(train_loader.sampler) + batch_idx * args.batch_size
+
             writer.add_scalar('loss/train', loss, step)
             writer.add_scalar('accuracy/train', accuracy, step)
+
+            writer.add_scalar('train/loss', loss, step)
+            writer.add_scalar('train/vae-loss', vae_loss.item(), step)
+            writer.add_scalar('train/ce-loss', ce_loss.item(), step)
+
+            writer.add_scalar('model/logit-scale', model.logit_scale, step)
 
             if batch_idx == 0:
                 # up to 8 samples

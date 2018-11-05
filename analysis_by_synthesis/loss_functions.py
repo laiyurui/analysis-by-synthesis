@@ -1,6 +1,7 @@
 import warnings
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 def samplewise_loss_function(x, rec_x, mu, logvar, beta):
@@ -40,17 +41,19 @@ def samplewise_loss_function(x, rec_x, mu, logvar, beta):
 def vae_loss_function(x, rec_x, mu, logvar, beta):
     """Loss function to train a VAE summed over all elements and batch."""
 
-    L2squared = torch.sum((rec_x - x).pow(2))
+    diff = rec_x - x
+    L2squared = torch.sum(diff.pow(2))
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return L2squared + beta * KLD
 
 
-def abs_loss_function(x, labels, recs, mus, logvars, beta):
+def abs_loss_function(x, labels, logits, recs, mus, logvars, beta):
     """Loss function of the full ABS model
 
     Args:
         x (Tensor): batch of inputs
         labels (Tensor): batch of labels corresponding to the inputs
+        logits (Tensor): batch of logits (logit for each sample (dim 0) and class (dim 1))
         recs (Tensor): reconstruction from each VAE (dim 0) for each sample (dim 1)
         mus (Tensor): mu from each VAE (dim 0) for each sample (dim 1)
         logvars (Tensor): logvar from each VAE (dim 0) for each sample (dim 1)
@@ -69,9 +72,12 @@ def abs_loss_function(x, labels, recs, mus, logvars, beta):
     loss = 0
     for c, rec, mu, logvar in zip(range(C), recs, mus, logvars):
         # train each VAE on samples from one class
-        mask = (labels == c)
-        if mask.sum().item() == 0:
+        samples = (labels == c)
+        if samples.sum().item() == 0:
             # batch does not contain samples for this VAE
             continue
-        loss += vae_loss_function(x[mask], rec[mask], mu[mask], logvar[mask], beta) / N
-    return loss
+        loss += vae_loss_function(x[samples], rec[samples], mu[samples], logvar[samples], beta) / N
+
+    ce = F.cross_entropy(logits, labels)
+    total_loss = loss + ce
+    return total_loss, loss, ce

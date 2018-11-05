@@ -45,11 +45,13 @@ class Decoder(nn.Module):
             nn.BatchNorm2d(16),
             nn.ELU(),
             nn.ConvTranspose2d(16, 1, 4),
-            nn.Sigmoid(),
         )
 
+        self.sigmoid = nn.Sigmoid()
+
     def forward(self, x):
-        return self.layers(x)
+        x = self.layers(x)
+        return self.sigmoid(x)
 
 
 class VAE(nn.Module):
@@ -83,13 +85,16 @@ class ABS(nn.Module):
 
         self.beta = beta
         self.vaes = nn.ModuleList([VAE(n_latents_per_class) for _ in range(n_classes)])
+        self.logit_scale = nn.Parameter(torch.tensor(350.))
 
     def forward(self, x):
         outputs = [vae(x) for vae in self.vaes]
         recs, mus, logvars = zip(*outputs)
         recs, mus, logvars = torch.stack(recs), torch.stack(mus), torch.stack(logvars)
-        losses = [samplewise_loss_function(x, *output, self.beta) for output in outputs]
+        losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta)
+                  for recs, mus, logvars in outputs]
         losses = torch.stack(losses)
         assert losses.dim() == 2
         logits = -losses.transpose(0, 1)
+        logits = logits * self.logit_scale
         return logits, recs, mus, logvars

@@ -22,14 +22,17 @@ def test(model, args, device, test_loader, step, writer=None, max_batches=None):
                 data = data.to(device)
                 targets = targets.to(device)
                 logits, recs, mus, logvars = model(data)
-                loss += abs_loss_function(data, targets, recs, mus, logvars, args.beta).item() * len(data)
+                loss += abs_loss_function(data, targets, logits, recs,
+                                          mus, logvars, args.beta)[0].item() * len(data)
                 correct += count_correct(logits, targets)
 
                 if i == 0 and writer is not None:
                     # up to 8 samples
                     n = min(data.size(0), 8)
+
                     # flatten VAE and batch dim into a single dim
                     shape = (-1,) + recs.size()[2:]
+
                     grid = torch.cat([data[:n], recs[:, :n].reshape(shape)])
                     grid = make_grid(grid, nrow=n)
                     writer.add_image(f'reconstructions/test{suffix}', grid, step)

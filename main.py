@@ -55,7 +55,11 @@ def main():
     robust_inference3 = RobustInference(model, device, n_samples=8000, n_iterations=50, **kwargs)
 
     # create optimizer
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    all_params = list(model.parameters())
+    per_parameter_options = [
+        {'params': all_params, 'lr': args.lr},
+    ]
+    optimizer = optim.Adam(per_parameter_options)
 
     # create writer for TensorBoard
     writer = SummaryWriter(args.logdir) if args.logdir is not None else None
