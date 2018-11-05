@@ -1,4 +1,5 @@
 data/mnist/MNIST/
+data/cifar10/
 logdir/
 
 # Created by https://www.gitignore.io/api/python

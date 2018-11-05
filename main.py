@@ -38,7 +38,8 @@ def main():
     samples_per_epoch = len(train_loader.sampler)
 
     # create the ABS model
-    model = ABS(n_classes=10, n_latents_per_class=8, beta=args.beta).to(device)
+    color = True if args.dataset in ['cifar', 'gtsrb'] else False
+    model = ABS(n_classes=10, n_latents_per_class=8, beta=args.beta, color=color).to(device)
     model.eval()
 
     # load weights
