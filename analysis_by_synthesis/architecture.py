@@ -111,12 +111,16 @@ class ColorDecoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, n_latents):
+    def __init__(self, n_latents, color=False):
         super().__init__()
 
         self.n_latents = n_latents
-        self.encoder = ColorEncoder(self.n_latents)
-        self.decoder = ColorDecoder(self.n_latents)
+        if color:
+            self.encoder = ColorEncoder(self.n_latents)
+            self.decoder = ColorDecoder(self.n_latents)
+        else:
+            self.encoder = Encoder(self.n_latents)
+            self.decoder = Decoder(self.n_latents)
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -136,11 +140,11 @@ class ABS(nn.Module):
     """ABS model implementation that performs variational inference
     and can be used for training."""
 
-    def __init__(self, n_classes, n_latents_per_class, beta):
+    def __init__(self, n_classes, n_latents_per_class, beta, color=False):
         super().__init__()
 
         self.beta = beta
-        self.vaes = nn.ModuleList([VAE(n_latents_per_class) for _ in range(n_classes)])
+        self.vaes = nn.ModuleList([VAE(n_latents_per_class, color) for _ in range(n_classes)])
         self.logit_scale = nn.Parameter(torch.tensor(350.))
 
     def forward(self, x):
