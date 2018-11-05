@@ -80,12 +80,17 @@ class ABS(nn.Module):
     """ABS model implementation that performs variational inference
     and can be used for training."""
 
-    def __init__(self, n_classes, n_latents_per_class, beta):
+    def __init__(self, n_classes, n_latents_per_class, beta, logit_scale=350.):
         super().__init__()
 
         self.beta = beta
-        self.vaes = nn.ModuleList([VAE(n_latents_per_class) for _ in range(n_classes)])
-        self.logit_scale = nn.Parameter(torch.tensor(350.))
+        self.logit_scale = nn.Parameter(torch.tensor(logit_scale))
+        
+        vaes = [VAE(n_latents_per_class) for _ in range(n_classes)]
+        self.vaes = nn.ModuleList(vaes)
+        
+        self.encoder_parameters = [item for vae in vaes for item in list(vae.encoder.parameters())]
+        self.decoder_parameters = [item for vae in vaes for item in list(vae.decoder.parameters())]
 
     def forward(self, x):
         outputs = [vae(x) for vae in self.vaes]
