@@ -4,6 +4,7 @@ import torch
 from torch import optim
 import torchvision
 from tensorboardX import SummaryWriter
+import git
 
 from analysis_by_synthesis.datasets import get_dataset, get_dataset_loaders
 from analysis_by_synthesis.inference import RobustInference
@@ -64,6 +65,15 @@ def main():
     # create writer for TensorBoard
     writer = SummaryWriter(args.logdir) if args.logdir is not None else None
 
+    # write arguments to TensorBoard
+    for arg in vars(args):
+        writer.add_text(arg, str(getattr(args, arg)))
+        
+    # add git commit and branch to Tensorboard
+    repo = git.Repo(search_parent_directories=True)
+    writer.add_text('git/commit', repo.head.object.hexsha)
+    writer.add_text('git/branch', repo.active_branch.name)
+    
     # main loop
     for epoch in range(first_epoch, args.epochs + 1):
         if epoch > 0:
