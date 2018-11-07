@@ -67,13 +67,14 @@ def main():
     writer = SummaryWriter(args.logdir) if args.logdir is not None else None
 
     # write arguments to TensorBoard
-    for arg in vars(args):
-        writer.add_text(arg, str(getattr(args, arg)))
-        
-    # add git commit and branch to Tensorboard
-    repo = git.Repo(search_parent_directories=True)
-    writer.add_text('git/commit', repo.head.object.hexsha)
-    writer.add_text('git/branch', repo.active_branch.name)
+    if writer is not None:
+        for arg in vars(args):
+            writer.add_text(arg, str(getattr(args, arg)))
+
+        # add git commit and branch to Tensorboard
+        repo = git.Repo(search_parent_directories=True)
+        writer.add_text('git/commit', repo.head.object.hexsha)
+        writer.add_text('git/branch', repo.active_branch.name)
     
     # main loop
     for epoch in range(first_epoch, args.epochs + 1):
