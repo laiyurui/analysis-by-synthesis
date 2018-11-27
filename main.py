@@ -12,6 +12,7 @@ from analysis_by_synthesis.architecture import ABS
 from analysis_by_synthesis.args import get_args
 from analysis_by_synthesis.train import train
 from analysis_by_synthesis.test import test
+from analysis_by_synthesis.attacks import LineSearchAttack, eval_robustness
 from analysis_by_synthesis.sample import sample
 
 
@@ -39,7 +40,7 @@ def main():
 
     # create the ABS model
     color = True if args.dataset in ['cifar', 'gtsrb'] else False
-    model = ABS(n_classes=10, n_latents_per_class=8, beta=args.beta, color=color).to(device)
+    model = ABS(n_classes=args.n_classes, n_latents_per_class=args.n_latents_per_class, beta=args.beta, color=color).to(device)
     model.eval()
 
     # load weights
@@ -55,6 +56,9 @@ def main():
     robust_inference1 = RobustInference(model, device, n_samples=80, n_iterations=0, **kwargs)
     robust_inference2 = RobustInference(model, device, n_samples=8000, n_iterations=0, **kwargs)
     robust_inference3 = RobustInference(model, device, n_samples=8000, n_iterations=50, **kwargs)
+
+    # create wrapper to create attack
+    attack = LineSearchAttack(robust_inference2)
 
     # create optimizer
     all_params = list(model.parameters())
@@ -90,16 +94,22 @@ def main():
         step = epoch * samples_per_epoch
 
         # common params for calls to test
-        params = (args, device, test_loader, step, writer)
+        param_args = (args, device, test_loader, step)
+        param_kwargs = {'writer': writer}
+
+
+
+
 
         # some evaluations can happen after every epoch because they are cheap
-        test(model, *params)
-        test(robust_inference1, *params)
-        test(robust_inference2, *params)
+        test(model, *param_args)
+        test(robust_inference1, *param_args, **param_kwargs)
+        test(robust_inference2, *param_args, **param_kwargs)
 
         # expensive evaluations happen from time to time and at the end
         if epoch % args.epochs_full_evaluation == 0 or epoch == args.epochs:
-            test(robust_inference3, *params)
+            test(robust_inference3, *param_args, **param_kwargs)
+            eval_robustness(robust_inference3, *param_args, attack, **param_kwargs)
 
         sample(model, device, step, writer)
 

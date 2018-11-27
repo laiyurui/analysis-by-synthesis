@@ -122,7 +122,7 @@ class RobustInference(nn.Module):
     def gradient_descent(self, x, z):
         with torch.enable_grad():
             # create a completely independent copy of z
-            z = torch.tensor(z, requires_grad=True).to(z.device)
+            z = z.clone().detach().requires_grad_(True)
             optimizer = optim.Adam([z], lr=self.lr)
 
             for j in range(self.gradient_descent_iterations):

@@ -18,8 +18,8 @@ def samplewise_loss_function(x, rec_x, mu, logvar, beta):
         x = x.reshape(x.shape[0], input_size)
         y = rec_x.reshape(rec_x.shape[1], input_size)
 
-        x2 = torch.norm(x, p=2, dim=-1, keepdim=True).pow(2)
-        y2 = torch.norm(y, p=2, dim=-1, keepdim=True).pow(2)
+        x2 = torch.norm(x, p=2, dim=-1, keepdim=True).pow(2)  # x2 shape (bs, 1)
+        y2 = torch.norm(y, p=2, dim=-1, keepdim=True).pow(2)  # y2 shape (1, nsamples)
         # note that we could cache the calculation of y2, but
         # it's so fast that it doesn't matter
 
@@ -28,7 +28,7 @@ def samplewise_loss_function(x, rec_x, mu, logvar, beta):
     else:
         if len(x.shape) != 4 or x.shape != rec_x.shape:
             warnings.warn('samplewise_loss_function possibly not been optimized for this')
-            raise
+            raise Exception
 
         d = rec_x - x
         d.pow_(2)

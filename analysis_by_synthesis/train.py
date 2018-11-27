@@ -42,7 +42,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
 
             if batch_idx == 0:
                 # up to 8 samples
-                n = min(data.size(0), 10)
+                n = min(data.size(0), args.n_classes)
 
                 # flatten VAE and batch dim into a single dim
                 shape = (-1,) + recs.size()[2:]
