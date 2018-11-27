@@ -42,6 +42,8 @@ def get_args():
                         help='disables class balancing in batches')
     parser.add_argument('--no-augmentation', action='store_true', default=False,
                         help='disables data augmentation')
+    parser.add_argument('--n-classes', default=10, type=int,
+                        help='number of classes in dataset')
 
     # control inference
     parser.add_argument('--inference-lr', type=float, default=5e-2,
@@ -60,6 +62,11 @@ def get_args():
                         help='input batch size for testing (default: 10000)')
     parser.add_argument('--num-workers', type=int, default=4, metavar='N',
                         help='number of workers to load data (default: 4)')
+
+    # control model
+    parser.add_argument('--n_latents-per-class', default=8, type=int,
+                        help='Number of latent dimensions for each VAE')
+
 
     args = parser.parse_args()
     return args
