@@ -138,7 +138,7 @@ class VAE(nn.Module):
                 eps = torch.empty_like(z).uniform_(0, 1)
                 return - 1 / torch.exp(z) * torch.log(1 - eps)
             else:
-                return - 1 / torch.exp(z)
+                return 1 / torch.exp(z)
         else:
             raise Exception(f'prior {self.KL_prior} not know')
 
