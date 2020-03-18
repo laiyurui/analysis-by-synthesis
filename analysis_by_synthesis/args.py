@@ -27,12 +27,20 @@ def get_args():
     parser.add_argument('--beta', type=float, default=1,
                         help='scaling factor for the KLD loss term')
 
+    # exponential prior
+    parser.add_argument('--KL_prior', type=str, default='gaussian',
+                        help='prior', choices=['gaussian', 'exponential'])
+    parser.add_argument('--prior_log_rate', type=float, default=5.0,
+                        help='log rate of prior')
+    parser.add_argument('--threshold', type=float, default=1.0,
+                        help='threshold for latents')\
+
     # control logging and evaluation
     parser.add_argument('--initial-evaluation', action='store_true', default=False,
                         help='perform an initial evaluation before training')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--epochs-full-evaluation', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs-full-evaluation', type=int, default=3, metavar='N',
                         help='how many epochs to wait before a full (expensive) evaluation')
 
     # control dataset

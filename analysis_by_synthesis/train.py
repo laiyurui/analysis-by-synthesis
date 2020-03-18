@@ -17,7 +17,8 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
         targets = targets.to(device)
         optimizer.zero_grad()
         logits, recs, mus, logvars = model(data)
-        loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta)
+        loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta,
+                                                    KL_prior=args.KL_prior)
         loss.backward()
         optimizer.step()
 

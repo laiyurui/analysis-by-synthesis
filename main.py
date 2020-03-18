@@ -3,8 +3,10 @@ from os.path import join
 import torch
 from torch import optim
 import torchvision
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import git
+import datetime
+from pytz import timezone
 
 from analysis_by_synthesis.datasets import get_dataset, get_dataset_loaders
 from analysis_by_synthesis.inference import RobustInference
@@ -40,7 +42,9 @@ def main():
 
     # create the ABS model
     color = True if args.dataset in ['cifar', 'gtsrb'] else False
-    model = ABS(n_classes=args.n_classes, n_latents_per_class=args.n_latents_per_class, beta=args.beta, color=color).to(device)
+    model = ABS(n_classes=args.n_classes, n_latents_per_class=args.n_latents_per_class,
+                beta=args.beta, color=color, KL_prior=args.KL_prior,
+                threshold=args.threshold).to(device)
     model.eval()
 
     # load weights
@@ -52,6 +56,7 @@ def main():
         'fraction_to_dismiss': args.fraction_to_dismiss,
         'lr': args.inference_lr,
         'radius': args.clip_to_sphere,
+        'KL_prior': args.KL_prior,
     }
     robust_inference1 = RobustInference(model, device, n_samples=80, n_iterations=0, **kwargs)
     robust_inference2 = RobustInference(model, device, n_samples=8000, n_iterations=0, **kwargs)
@@ -68,7 +73,8 @@ def main():
     optimizer = optim.Adam(per_parameter_options)
 
     # create writer for TensorBoard
-    writer = SummaryWriter(args.logdir) if args.logdir is not None else None
+    time_stamp = datetime.datetime.now(tz=timezone("Europe/Berlin")).strftime("%Y-%m-%d-%H-%M-%S")
+    writer = SummaryWriter(args.logdir + time_stamp) if args.logdir is not None else None
 
     # write arguments to TensorBoard
     if writer is not None:
@@ -96,10 +102,6 @@ def main():
         # common params for calls to test
         param_args = (args, device, test_loader, step)
         param_kwargs = {'writer': writer}
-
-
-
-
 
         # some evaluations can happen after every epoch because they are cheap
         test(model, *param_args)

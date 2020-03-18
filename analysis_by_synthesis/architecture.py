@@ -111,8 +111,10 @@ class ColorDecoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, n_latents, color=False):
+    def __init__(self, n_latents, color=False, KL_prior='gaussian', threshold=None):
         super().__init__()
+        self.KL_prior = KL_prior
+        self.threshold = threshold
 
         self.n_latents = n_latents
         if color:
@@ -122,31 +124,47 @@ class VAE(nn.Module):
             self.encoder = Encoder(self.n_latents)
             self.decoder = Decoder(self.n_latents)
 
-    def reparameterize(self, mu, logvar):
-        if self.training:
-            std = torch.exp(0.5 * logvar)
-            eps = torch.randn_like(std)
-            return eps.mul(std).add_(mu)
+    def reparameterize(self, z, logvar):
+        if self.KL_prior == 'gaussian':
+            if self.training:  # z is mu in this case
+                    std = torch.exp(0.5 * logvar)
+                    eps = torch.randn_like(std)
+                    return eps.mul(std).add_(z)  # mu
+            else:
+                return z   # mu
+        elif self.KL_prior == 'exponential':   # z is log_rates of exponential
+            if self.training:
+                # inverse transform sampling - Exponential Distribution
+                eps = torch.empty_like(z).uniform_(0, 1)
+                return - 1 / torch.exp(z) * torch.log(1 - eps)
+            else:
+                return - 1 / torch.exp(z)
         else:
-            return mu
+            raise Exception(f'prior {self.KL_prior} not know')
 
     def forward(self, x):
-        mu, logvar = self.encoder(x)
-        z = self.reparameterize(mu, logvar)
-        return self.decoder(z), mu, logvar
+        z, logvar = self.encoder(x)
+        z_reparam = self.reparameterize(z, logvar)
+        if self.KL_prior == 'exponential':   # z is log_rates of exponential
+            z_reparam = torch.relu(z_reparam - self.threshold)
+            logvar = z_reparam
+        return self.decoder(z_reparam), z, logvar
 
 
 class ABS(nn.Module):
     """ABS model implementation that performs variational inference
     and can be used for training."""
 
-    def __init__(self, n_classes, n_latents_per_class, beta, color=False, logit_scale=350.):
+    def __init__(self, n_classes, n_latents_per_class, beta, color=False, logit_scale=350., KL_prior='guassian',
+                 threshold=None):
         super().__init__()
 
         self.beta = beta
-        self.vaes = nn.ModuleList([VAE(n_latents_per_class, color) for _ in range(n_classes)])
+        self.vaes = nn.ModuleList([VAE(n_latents_per_class, color, KL_prior=KL_prior,
+                                       threshold=threshold) for _ in range(n_classes)])
         self.logit_scale = nn.Parameter(torch.tensor(logit_scale))
-        
+        self.KL_prior = KL_prior
+
         self.encoder_parameters = [item for vae in self.vaes for item in list(vae.encoder.parameters())]
         self.decoder_parameters = [item for vae in self.vaes for item in list(vae.decoder.parameters())]
 
@@ -154,7 +172,8 @@ class ABS(nn.Module):
         outputs = [vae(x) for vae in self.vaes]
         recs, mus, logvars = zip(*outputs)
         recs, mus, logvars = torch.stack(recs), torch.stack(mus), torch.stack(logvars)
-        losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta)
+        losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta,
+                                           KL_prior=self.KL_prior)
                   for recs, mus, logvars in outputs]
         losses = torch.stack(losses)
         assert losses.dim() == 2

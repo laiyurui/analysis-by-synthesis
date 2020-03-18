@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 from torch import nn, optim
+from torch.distributions import exponential
+from torch.nn.functional import relu
 
 from .loss_functions import samplewise_loss_function
 
@@ -9,7 +11,8 @@ class RobustInference(nn.Module):
     """Takes a trained ABS model and replaces its variational inference
     with robust inference."""
 
-    def __init__(self, abs_model, device, n_samples, n_iterations, *, fraction_to_dismiss, lr, radius):
+    def __init__(self, abs_model, device, n_samples, n_iterations, *, fraction_to_dismiss, lr, radius,
+                 KL_prior='gaussian'):
         super().__init__()
 
         self.abs = abs_model
@@ -18,6 +21,7 @@ class RobustInference(nn.Module):
         self.beta = abs_model.beta
         self.radius = radius
         self.name = f'{n_samples}_{n_iterations}'
+        self.KL_prior = KL_prior
 
         # create a set of random latents that we will reuse
         n_latents = self.vaes[0].n_latents
@@ -33,11 +37,17 @@ class RobustInference(nn.Module):
         assert n_iterations >= 0, 'n_iterations must be non-negative'
         self.gradient_descent_iterations = n_iterations
 
-    @staticmethod
-    def draw_random_latents(n_samples, n_latents, fraction_to_dismiss):
+    # @staticmethod
+    def draw_random_latents(self, n_samples, n_latents, fraction_to_dismiss):
         assert 0 <= fraction_to_dismiss < 1
-
-        z = torch.randn(int(n_samples / (1 - fraction_to_dismiss)), n_latents, 1, 1)
+        shape = (int(n_samples / (1 - fraction_to_dismiss)), n_latents, 1, 1)
+        if self.KL_prior == 'gaussian':
+            z = torch.randn(shape)
+        elif self.KL_prior == 'exponential':
+            distribution = exponential.Exponential(5.)
+            z = relu(distribution.sample(shape))
+        else:
+            NotImplementedError
 
         if z.size()[0] > n_samples:
             # ignore the least likely samples
@@ -91,7 +101,8 @@ class RobustInference(nn.Module):
                 # determine the best latents for each sample in x given this VAE
                 # -> add a second batch dimension to x that will be broadcasted to the number of reconstructions
                 # -> add a second batch dimension to rec that will be broadcasted to the number of inputs in x
-                loss = samplewise_loss_function(x.unsqueeze(1), rec.unsqueeze(0), self.mu, self.logvar, self.beta)
+                loss = samplewise_loss_function(x.unsqueeze(1), rec.unsqueeze(0), self.mu, self.logvar, self.beta,
+                                                KL_prior=self.KL_prior)
                 assert loss.dim() == 2
                 # take min over samples in z
                 loss, indices = loss.min(dim=1)
@@ -109,7 +120,7 @@ class RobustInference(nn.Module):
 
                 # update losses and recs
                 recs = [vae.decoder(mu) for vae, mu in zip(self.vaes, mus)]
-                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta)
+                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta, KL_prior=self.KL_prior)
                           for rec, mu in zip(recs, mus)]
 
             recs = torch.stack(recs)
@@ -130,7 +141,7 @@ class RobustInference(nn.Module):
 
                 for vae, zi in zip(self.vaes, z):
                     rec = vae.decoder(zi)
-                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta).sum()
+                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta, KL_prior=self.KL_prior).sum()
                     loss.backward()
 
                 optimizer.step()

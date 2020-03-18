@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 
-def samplewise_loss_function(x, rec_x, mu, logvar, beta):
+def samplewise_loss_function(x, rec_x, z, logvar, beta, prior_log_rate=5., KL_prior='gaussian'):
     """This is the loss function used during inference to calculate the logits.
 
     This function must only operate on the last the dimensions of x and rec_x.
@@ -24,7 +24,7 @@ def samplewise_loss_function(x, rec_x, mu, logvar, beta):
         # it's so fast that it doesn't matter
 
         L2squared = x2 + y2.t() - 2 * torch.mm(x, y.t())
-        L2squared = L2squared / input_size
+        L2squared = L2squared / input_size / len(x)
     else:
         if len(x.shape) != 4 or x.shape != rec_x.shape:
             warnings.warn('samplewise_loss_function possibly not been optimized for this')
@@ -32,22 +32,35 @@ def samplewise_loss_function(x, rec_x, mu, logvar, beta):
 
         d = rec_x - x
         d.pow_(2)
-        L2squared = d.sum((-1, -2, -3)) / input_size
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=((-1, -2, -3))) / input_size
+        L2squared = d.sum((-1, -2, -3)) / input_size / len(x)
+
+    if KL_prior == 'gaussian':
+        KLD = -0.5 * torch.sum(1 + logvar - z.pow(2) - logvar.exp(), dim=((-1, -2, -3))) / input_size / len(x)  # z = mu
+    elif KL_prior == 'exponential':
+        KLD = torch.sum(z - prior_log_rate + torch.exp(prior_log_rate - z) - 1, dim=(-1, -2, -3)) / input_size / len(x)  # z is log_rates
+    else:
+        raise NotImplementedError
+
     # note that the KLD sum is over the latents, not over the input size
     return L2squared + beta * KLD
 
 
-def vae_loss_function(x, rec_x, mu, logvar, beta):
+def vae_loss_function(x, rec_x, z, logvar, beta, prior_log_rate=5, KL_prior='gaussian'):
     """Loss function to train a VAE summed over all elements and batch."""
+    input_size = int(np.prod(x.shape[-3:]))
 
-    diff = rec_x - x
-    L2squared = torch.sum(diff.pow(2))
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    L2squared = ((rec_x - x)**2).sum() / input_size / len(x)
+
+    if KL_prior == 'gaussian':
+        KLD = -0.5 * torch.sum(1 + logvar - z.pow(2) - logvar.exp()) / input_size / len(x) # z = mu
+    elif KL_prior == 'exponential':
+        KLD = torch.sum(z - prior_log_rate + torch.exp(prior_log_rate - z) - 1) / input_size / len(x)  # z is log_rates
+    else:
+        raise NotImplementedError
     return L2squared + beta * KLD
 
 
-def abs_loss_function(x, labels, logits, recs, mus, logvars, beta):
+def abs_loss_function(x, labels, logits, recs, zs, logvars, beta, KL_prior='gaussian'):
     """Loss function of the full ABS model
 
     Args:
@@ -63,20 +76,20 @@ def abs_loss_function(x, labels, logits, recs, mus, logvars, beta):
 
     assert labels.size() == (N,)
     assert recs.size()[:2] == (C, N)
-    assert mus.size()[:2] == (C, N)
+    assert zs.size()[:2] == (C, N)
     assert logvars.size()[:2] == (C, N)
 
     assert labels.min().item() >= 0
     assert labels.max().item() < C
 
     loss = 0
-    for c, rec, mu, logvar in zip(range(C), recs, mus, logvars):
+    for c, rec, z, logvar in zip(range(C), recs, zs, logvars):
         # train each VAE on samples from one class
         samples = (labels == c)
         if samples.sum().item() == 0:
             # batch does not contain samples for this VAE
             continue
-        loss += vae_loss_function(x[samples], rec[samples], mu[samples], logvar[samples], beta) / N
+        loss += vae_loss_function(x[samples], rec[samples], z[samples], logvar[samples], beta, KL_prior=KL_prior) / N
 
     ce = F.cross_entropy(logits, labels)
     total_loss = loss + ce

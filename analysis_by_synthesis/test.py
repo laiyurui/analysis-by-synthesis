@@ -23,7 +23,7 @@ def test(model, args, device, test_loader, step, writer=None, max_batches=None):
                 targets = targets.to(device)
                 logits, recs, mus, logvars = model(data)
                 loss += abs_loss_function(data, targets, logits, recs,
-                                          mus, logvars, args.beta)[0].item() * len(data)
+                                          mus, logvars, args.beta, KL_prior=args.KL_prior)[0].item() * len(data)
                 correct += count_correct(logits, targets)
 
                 if i == 0 and writer is not None:
