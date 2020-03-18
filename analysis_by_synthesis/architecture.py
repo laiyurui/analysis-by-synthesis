@@ -155,7 +155,7 @@ class ABS(nn.Module):
     """ABS model implementation that performs variational inference
     and can be used for training."""
 
-    def __init__(self, n_classes, n_latents_per_class, beta, color=False, logit_scale=350., KL_prior='guassian',
+    def __init__(self, n_classes, n_latents_per_class, beta, color=False, logit_scale=350., KL_prior='gaussian',
                  threshold=None):
         super().__init__()
 
