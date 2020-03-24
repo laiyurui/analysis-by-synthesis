@@ -12,7 +12,7 @@ class RobustInference(nn.Module):
     with robust inference."""
 
     def __init__(self, abs_model, device, n_samples, n_iterations, *, fraction_to_dismiss, lr, radius,
-                 KL_prior='gaussian'):
+                 KL_prior='gaussian', marg_ent_weight=0.1):
         super().__init__()
 
         self.abs = abs_model
@@ -22,6 +22,7 @@ class RobustInference(nn.Module):
         self.radius = radius
         self.name = f'{n_samples}_{n_iterations}'
         self.KL_prior = KL_prior
+        self.marg_ent_weight = marg_ent_weight
 
         # create a set of random latents that we will reuse
         n_latents = self.vaes[0].n_latents
@@ -102,7 +103,7 @@ class RobustInference(nn.Module):
                 # -> add a second batch dimension to x that will be broadcasted to the number of reconstructions
                 # -> add a second batch dimension to rec that will be broadcasted to the number of inputs in x
                 loss = samplewise_loss_function(x.unsqueeze(1), rec.unsqueeze(0), self.mu, self.logvar, self.beta,
-                                                KL_prior=self.KL_prior)
+                                                KL_prior=self.KL_prior, marg_ent_weight=self.marg_ent_weight)
                 assert loss.dim() == 2
                 # take min over samples in z
                 loss, indices = loss.min(dim=1)
@@ -120,7 +121,8 @@ class RobustInference(nn.Module):
 
                 # update losses and recs
                 recs = [vae.decoder(mu) for vae, mu in zip(self.vaes, mus)]
-                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta, KL_prior=self.KL_prior)
+                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta, KL_prior=self.KL_prior,
+                                                   marg_ent_weight=self.marg_ent_weight)
                           for rec, mu in zip(recs, mus)]
 
             recs = torch.stack(recs)
@@ -141,7 +143,8 @@ class RobustInference(nn.Module):
 
                 for vae, zi in zip(self.vaes, z):
                     rec = vae.decoder(zi)
-                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta, KL_prior=self.KL_prior).sum()
+                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta, KL_prior=self.KL_prior,
+                                                    marg_ent_weight=self.marg_ent_weight).sum()
                     loss.backward()
 
                 optimizer.step()

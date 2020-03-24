@@ -18,7 +18,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
         optimizer.zero_grad()
         logits, recs, mus, logvars = model(data)
         loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta,
-                                                    KL_prior=args.KL_prior)
+                                                    KL_prior=args.KL_prior, marg_ent_weight=args.marg_ent_weight)
         loss.backward()
         optimizer.step()
 
@@ -40,6 +40,11 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
             writer.add_scalar('train/ce-loss', ce_loss.item(), step)
 
             writer.add_scalar('model/logit-scale', model.logit_scale, step)
+
+            # some shenanigans on the mu's
+            writer.add_scalar(f'train_latents/mean', torch.mean(mus), step)
+            writer.add_scalar(f'train_latents/percantage_larger0', float(torch.sum(mus > 0)) / len(mus), step)
+            writer.add_scalar(f'train_latents/percantage_larger0p1', float(torch.sum(mus > 0.1)) / len(mus), step)
 
             if batch_idx == 0:
                 # up to 8 samples

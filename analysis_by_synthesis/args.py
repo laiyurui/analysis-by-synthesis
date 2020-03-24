@@ -32,6 +32,8 @@ def get_args():
                         help='prior', choices=['gaussian', 'exponential'])
     parser.add_argument('--prior_log_rate', type=float, default=5.0,
                         help='log rate of prior')
+    parser.add_argument('--marg_ent_weight', type=float,
+                        default=0.)
     parser.add_argument('--threshold', type=float, default=1.0,
                         help='threshold for latents')\
 

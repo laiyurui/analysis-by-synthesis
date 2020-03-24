@@ -44,7 +44,8 @@ def main():
     color = True if args.dataset in ['cifar', 'gtsrb'] else False
     model = ABS(n_classes=args.n_classes, n_latents_per_class=args.n_latents_per_class,
                 beta=args.beta, color=color, KL_prior=args.KL_prior,
-                threshold=args.threshold).to(device)
+                threshold=args.threshold,
+                marg_ent_weight=args.marg_ent_weight).to(device)
     model.eval()
 
     # load weights
@@ -57,6 +58,7 @@ def main():
         'lr': args.inference_lr,
         'radius': args.clip_to_sphere,
         'KL_prior': args.KL_prior,
+        'marg_ent_weight': args.marg_ent_weight
     }
     robust_inference1 = RobustInference(model, device, n_samples=80, n_iterations=0, **kwargs)
     robust_inference2 = RobustInference(model, device, n_samples=8000, n_iterations=0, **kwargs)
