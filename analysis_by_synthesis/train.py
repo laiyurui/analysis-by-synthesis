@@ -43,8 +43,8 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
 
             # some shenanigans on the mu's
             writer.add_scalar(f'train_latents/mean', torch.mean(mus), step)
-            writer.add_scalar(f'train_latents/percantage_larger0', float(torch.sum(mus > 0)) / len(mus), step)
-            writer.add_scalar(f'train_latents/percantage_larger0p1', float(torch.sum(mus > 0.1)) / len(mus), step)
+            writer.add_scalar(f'train_latents/percantage_larger0', (mus > 0).type(torch.float32).mean(), step)
+            writer.add_scalar(f'train_latents/percantage_larger0p1', (mus > 0.1).type(torch.float32).mean(), step)
 
             if batch_idx == 0:
                 # up to 8 samples

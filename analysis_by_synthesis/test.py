@@ -53,7 +53,6 @@ def test(model, args, device, test_loader, step, writer=None, max_batches=None):
 
         # some shenanigans on the mu's
         writer.add_scalar(f'latents/mean{suffix}', torch.mean(mus), step)
-        writer.add_scalar(f'latents/percantage_larger0{suffix}', float(torch.sum(mus  > 0)) / len(mus), step)
-        writer.add_scalar(f'latents/percantage_larger0p1{suffix}', float(torch.sum(mus  > 0.1)) / len(mus), step)
-
+        writer.add_scalar(f'latents/percantage_larger0{suffix}', (mus > 0).type(torch.float32).mean(), step)
+        writer.add_scalar(f'latents/percantage_larger0p1{suffix}', (mus > 0.1).type(torch.float32).mean(), step)
 
