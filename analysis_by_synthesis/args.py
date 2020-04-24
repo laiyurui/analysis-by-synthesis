@@ -1,7 +1,7 @@
 import argparse
 
 
-def get_args():
+def get_args(ipynb=None):
     parser = argparse.ArgumentParser(description='Analysis by Synthesis Model')
 
     parser.add_argument('--test-only', action='store_true', default=False,
@@ -68,5 +68,5 @@ def get_args():
                         help='Number of latent dimensions for each VAE')
 
 
-    args = parser.parse_args()
+    args = parser.parse_args(ipynb)
     return args
