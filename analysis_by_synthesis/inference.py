@@ -13,14 +13,14 @@ class RobustInference(nn.Module):
         super().__init__()
 
         self.abs = abs_model
-        self.vaes = abs_model.vaes
+        self.base_models = abs_model.base_models
         self.lr = lr
         self.beta = abs_model.beta
         self.radius = radius
         self.name = f'{n_samples}_{n_iterations}'
 
         # create a set of random latents that we will reuse
-        n_latents = self.vaes[0].n_latents
+        n_latents = self.base_models[0].n_latents
         self.z = self.draw_random_latents(n_samples, n_latents, fraction_to_dismiss).to(device)
 
         # assuming that z's were sampled from a normal distribution with mean = z, var = 1
@@ -82,7 +82,7 @@ class RobustInference(nn.Module):
             losses = []
             recs = []
             mus = []
-            for vae in self.vaes:
+            for vae in self.base_models:
                 # pass the random latents through the VAEs
                 if vae not in self.cached_reconstructions:
                     self.cached_reconstructions[vae] = vae.decoder(self.z)
@@ -108,7 +108,7 @@ class RobustInference(nn.Module):
                 mus = self.gradient_descent(x, mus)
 
                 # update losses and recs
-                recs = [vae.decoder(mu) for vae, mu in zip(self.vaes, mus)]
+                recs = [vae.decoder(mu) for vae, mu in zip(self.base_models, mus)]
                 losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta)
                           for rec, mu in zip(recs, mus)]
 
@@ -128,7 +128,7 @@ class RobustInference(nn.Module):
             for j in range(self.gradient_descent_iterations):
                 optimizer.zero_grad()
 
-                for vae, zi in zip(self.vaes, z):
+                for vae, zi in zip(self.base_models, z):
                     rec = vae.decoder(zi)
                     loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta).sum()
                     loss.backward()

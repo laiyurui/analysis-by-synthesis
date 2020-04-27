@@ -33,7 +33,7 @@ def test(model, args, device, test_loader, step, writer=None, max_batches=None):
                     # flatten VAE and batch dim into a single dim
                     shape = (-1,) + recs.size()[2:]
 
-                    grid = torch.cat([data[:n], recs[:, :n].reshape(shape)])
+                    grid = torch.cat([data[:n], recs[:, :n].reshape(shape).clamp(0, 1)])
                     grid = make_grid(grid, nrow=n)
                     writer.add_image(f'reconstructions/test{suffix}', grid, step)
 

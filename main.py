@@ -3,12 +3,12 @@ from os.path import join
 import torch
 from torch import optim
 import torchvision
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import git
 
 from analysis_by_synthesis.datasets import get_dataset, get_dataset_loaders
 from analysis_by_synthesis.inference import RobustInference
-from analysis_by_synthesis.architecture import ABS
+from analysis_by_synthesis.architecture import ABS, get_base_model
 from analysis_by_synthesis.args import get_args
 from analysis_by_synthesis.train import train
 from analysis_by_synthesis.test import test
@@ -32,6 +32,7 @@ def main():
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
+    args.device = device
 
     # load the train and test set
     train_set, test_set = get_dataset(args.dataset, args.no_augmentation)
@@ -40,7 +41,8 @@ def main():
 
     # create the ABS model
     color = True if args.dataset in ['cifar', 'gtsrb'] else False
-    model = ABS(n_classes=args.n_classes, n_latents_per_class=args.n_latents_per_class, beta=args.beta, color=color).to(device)
+    base_model_f = lambda: get_base_model(args)
+    model = ABS(n_classes=args.n_classes, beta=args.beta, color=color, base_model_f=base_model_f).to(device)
     model.eval()
 
     # load weights
@@ -96,10 +98,6 @@ def main():
         # common params for calls to test
         param_args = (args, device, test_loader, step)
         param_kwargs = {'writer': writer}
-
-
-
-
 
         # some evaluations can happen after every epoch because they are cheap
         test(model, *param_args)

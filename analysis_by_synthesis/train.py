@@ -38,7 +38,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
             writer.add_scalar('train/vae-loss', vae_loss.item(), step)
             writer.add_scalar('train/ce-loss', ce_loss.item(), step)
 
-            writer.add_scalar('model/logit-scale', model.logit_scale, step)
+            # writer.add_scalar('model/logit-scale', model.logit_scale, step)
 
             if batch_idx == 0:
                 # up to 8 samples
@@ -47,7 +47,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
                 # flatten VAE and batch dim into a single dim
                 shape = (-1,) + recs.size()[2:]
 
-                grid = torch.cat([data[:n], recs[:, :n].reshape(shape)])
+                grid = torch.cat([data[:n], recs[:, :n].reshape(shape).clamp(0, 1)])
                 grid = make_grid(grid, nrow=n)
                 writer.add_image(f'reconstructions/train', grid, step)
 

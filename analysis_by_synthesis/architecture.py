@@ -1,7 +1,18 @@
 import torch
 from torch import nn
-
+from one_lip_ae.one_lip_nets import get_one_lip_model
 from .loss_functions import samplewise_loss_function
+
+
+def get_base_model(args):
+    if args.base_model == 'one_lip_ae':
+        base_model = get_one_lip_model(args)
+    elif args.base_model == 'vae':
+        base_model = VAE(n_latents=args.n_latents_per_class)
+    else:
+        raise NotImplementedError(f'model {args.base_model} is not implemented try OneLipAE or VAE')
+
+    return base_model
 
 
 class Encoder(nn.Module):
@@ -140,18 +151,19 @@ class ABS(nn.Module):
     """ABS model implementation that performs variational inference
     and can be used for training."""
 
-    def __init__(self, n_classes, n_latents_per_class, beta, color=False, logit_scale=350.):
+    def __init__(self, n_classes, beta, color=False, logit_scale=1.,
+                 base_model_f=VAE):
         super().__init__()
 
         self.beta = beta
-        self.vaes = nn.ModuleList([VAE(n_latents_per_class, color) for _ in range(n_classes)])
-        self.logit_scale = nn.Parameter(torch.tensor(logit_scale))
+        self.base_models = nn.ModuleList([base_model_f() for _ in range(n_classes)])
+        # self.logit_scale = nn.Parameter(torch.tensor(logit_scale))
         
-        self.encoder_parameters = [item for vae in self.vaes for item in list(vae.encoder.parameters())]
-        self.decoder_parameters = [item for vae in self.vaes for item in list(vae.decoder.parameters())]
+        self.encoder_parameters = [item for vae in self.base_models for item in list(vae.encoder.parameters())]
+        self.decoder_parameters = [item for vae in self.base_models for item in list(vae.decoder.parameters())]
 
     def forward(self, x):
-        outputs = [vae(x) for vae in self.vaes]
+        outputs = [base_model(x) for base_model in self.base_models]
         recs, mus, logvars = zip(*outputs)
         recs, mus, logvars = torch.stack(recs), torch.stack(mus), torch.stack(logvars)
         losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta)
@@ -159,5 +171,5 @@ class ABS(nn.Module):
         losses = torch.stack(losses)
         assert losses.dim() == 2
         logits = -losses.transpose(0, 1)
-        logits = logits * self.logit_scale
+        # logits = logits * self.logit_scale
         return logits, recs, mus, logvars

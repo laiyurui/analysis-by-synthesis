@@ -66,7 +66,10 @@ def get_args(ipynb=None):
     # control model
     parser.add_argument('--n_latents-per-class', default=8, type=int,
                         help='Number of latent dimensions for each VAE')
-
+    parser.add_argument('--base-model', default='one_lip_ae', type=str,
+                        help='VAE or one-lip-ae')
+    parser.add_argument('--lip-up-factor', default=1., type=float,
+                        help='scale for output')
 
     args = parser.parse_args(ipynb)
     return args
