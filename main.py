@@ -5,6 +5,8 @@ from torch import optim
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
 import git
+import datetime
+from pytz import timezone
 
 from analysis_by_synthesis.datasets import get_dataset, get_dataset_loaders
 from analysis_by_synthesis.inference import RobustInference
@@ -70,7 +72,8 @@ def main():
     optimizer = optim.Adam(per_parameter_options)
 
     # create writer for TensorBoard
-    writer = SummaryWriter(args.logdir) if args.logdir is not None else None
+    time_stamp = '--' + datetime.datetime.now(tz=timezone("Europe/Berlin")).strftime("%Y-%m-%d-%H-%M-%S")
+    writer = SummaryWriter(args.logdir + time_stamp) if args.logdir is not None else None
 
     # write arguments to TensorBoard
     if writer is not None:
@@ -100,7 +103,7 @@ def main():
         param_kwargs = {'writer': writer}
 
         # some evaluations can happen after every epoch because they are cheap
-        test(model, *param_args)
+        test(model, *param_args, **param_kwargs)
         test(robust_inference1, *param_args, **param_kwargs)
         test(robust_inference2, *param_args, **param_kwargs)
 
