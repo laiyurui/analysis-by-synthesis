@@ -10,6 +10,7 @@ from pytz import timezone
 
 from analysis_by_synthesis.datasets import get_dataset, get_dataset_loaders
 from analysis_by_synthesis.inference import RobustInference
+from analysis_by_synthesis.loss_functions import get_loss_function
 from analysis_by_synthesis.architecture import ABS, get_base_model
 from analysis_by_synthesis.args import get_args
 from analysis_by_synthesis.train import train
@@ -44,7 +45,9 @@ def main():
     # create the ABS model
     color = True if args.dataset in ['cifar', 'gtsrb'] else False
     base_model_f = lambda: get_base_model(args)
-    model = ABS(n_classes=args.n_classes, beta=args.beta, color=color, base_model_f=base_model_f).to(device)
+    args.loss_f = get_loss_function(args)
+    model = ABS(n_classes=args.n_classes, beta=args.beta, color=color, base_model_f=base_model_f,
+                loss_f=args.loss_f).to(device)
     model.eval()
 
     # load weights
@@ -96,10 +99,8 @@ def main():
             robust_inference2.invalidate_cache()
             robust_inference3.invalidate_cache()
 
-        step = epoch * samples_per_epoch
-
         # common params for calls to test
-        param_args = (args, device, test_loader, step)
+        param_args = (args, device, test_loader, epoch)
         param_kwargs = {'writer': writer}
 
         # some evaluations can happen after every epoch because they are cheap
@@ -112,7 +113,7 @@ def main():
             test(robust_inference3, *param_args, **param_kwargs)
             eval_robustness(robust_inference3, *param_args, attack, **param_kwargs)
 
-        sample(model, device, step, writer)
+        sample(model, device, epoch, writer)
 
     # save the model
     if args.logdir is not None:

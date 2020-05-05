@@ -4,7 +4,7 @@ import tqdm
 from torchvision.utils import make_grid
 
 
-def eval_robustness(model, args, device, test_loader, step, attack, writer=None, max_batches=None):
+def eval_robustness(model, args, device, test_loader, epoch, attack, writer=None, max_batches=None):
     model.eval()
     with torch.no_grad():
         with tqdm.tqdm(test_loader) as t:
@@ -24,8 +24,8 @@ def eval_robustness(model, args, device, test_loader, step, attack, writer=None,
                     # flatten VAE and batch dim into a single dim
                     grid = torch.stack(imgs).clamp(0, 1)
                     grid = make_grid(grid, nrow=n)
-                    writer.add_image(f'adversarials/adv_{i}', grid, step)
-                    writer.add_scalar(f'robustness/{attack.name}', median_pert, step)
+                    writer.add_image(f'adversarials/adv_{i}', grid, epoch)
+                    writer.add_scalar(f'robustness/{attack.name}', median_pert, epoch)
                 break
     return
 

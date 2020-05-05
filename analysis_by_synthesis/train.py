@@ -17,7 +17,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
         targets = targets.to(device)
         optimizer.zero_grad()
         logits, recs, mus, logvars = model(data)
-        loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta)
+        loss, vae_loss, ce_loss = abs_loss_function(data, targets, logits, recs, mus, logvars, args.beta, args.loss_f)
         loss.backward()
         optimizer.step()
 
@@ -28,7 +28,7 @@ def train(model, args, device, train_loader, optimizer, epoch, writer=None):
         accuracy = 100 * correct / len(data)
         epoch_correct += correct
 
-        if writer is not None:
+        if writer is not None and batch_idx % 10 == 0:
             step = (epoch - 1) * len(train_loader.sampler) + batch_idx * args.batch_size
 
             writer.add_scalar('loss/train', loss, step)

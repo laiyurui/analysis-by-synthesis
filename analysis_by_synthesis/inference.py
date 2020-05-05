@@ -91,7 +91,8 @@ class RobustInference(nn.Module):
                 # determine the best latents for each sample in x given this VAE
                 # -> add a second batch dimension to x that will be broadcasted to the number of reconstructions
                 # -> add a second batch dimension to rec that will be broadcasted to the number of inputs in x
-                loss = samplewise_loss_function(x.unsqueeze(1), rec.unsqueeze(0), self.mu, self.logvar, self.beta)
+                loss = samplewise_loss_function(x.unsqueeze(1), rec.unsqueeze(0), self.mu, self.logvar, self.beta,
+                                                loss_f=self.abs.loss_f)
                 assert loss.dim() == 2
                 # take min over samples in z
                 loss, indices = loss.min(dim=1)
@@ -109,7 +110,7 @@ class RobustInference(nn.Module):
 
                 # update losses and recs
                 recs = [vae.decoder(mu) for vae, mu in zip(self.base_models, mus)]
-                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta)
+                losses = [samplewise_loss_function(x, rec, mu, self.logvar, self.beta, loss_f=self.abs.loss_f)
                           for rec, mu in zip(recs, mus)]
 
             recs = torch.stack(recs)
@@ -130,7 +131,7 @@ class RobustInference(nn.Module):
 
                 for vae, zi in zip(self.base_models, z):
                     rec = vae.decoder(zi)
-                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta).sum()
+                    loss = samplewise_loss_function(x, rec, zi, self.logvar, self.beta, loss_f=self.abs.loss_f).sum()
                     loss.backward()
 
                 optimizer.step()

@@ -27,14 +27,15 @@ def get_one_lip_model(args):
         linear_module=BjorckLinear,
         activation=groupsort)
     decoder = OneLipDecoder(
-        input_spatial_shape=None,
         in_channels=args.n_latents_per_class,
         out_channels=1,
         conv_module=conv_module,
         linear_module=BjorckLinear,
-        activation=groupsort)
+        activation=groupsort,
+        lip_up_factor=args.lip_up_factor
+    )
 
-    model = AE(encoder, decoder, lip_up_factor=args.lip_up_factor)
+    model = AE(encoder, decoder)
     model.to(args.device)
 
     # LargeConvNet needs to know the input shape to calculate the Lipschitz constant
@@ -110,10 +111,11 @@ class OneLipDecoder(nn.Module):
         conv_module,
         linear_module,
         activation,
-        input_spatial_shape,
+        lip_up_factor=1.
     ):
         super().__init__()
         cf = 1
+        self.lip_up_factor = lip_up_factor
         self.cache = None
         self.activation = activation
         self.n_latents = in_channels
@@ -136,7 +138,8 @@ class OneLipDecoder(nn.Module):
         conv3_up = channel_2_dim(conv3_up[:, :, 1:-1, 1:-1])    # padding does not work, (bs, ..., 28, 28)
         conv4 = self.conv4(conv3_up)    # (bs, ..., 28, 28)
         out = conv4
-        self.cache = [var.detach().cpu() for var in [fc1, fc2_up, fc2_up, conv1_up, conv2_up, conv3_up, conv4, out]]
+        out = out * self.lip_up_factor
+        # self.cache = [var.detach().cpu() for var in [fc1, fc2_up, fc2_up, conv1_up, conv2_up, conv3_up, conv4, out]]
         return out
 
 
@@ -196,16 +199,15 @@ class OneLipEncoder(nn.Module):
 
 
 class AE(nn.Module):
-    def __init__(self, encoder, decoder, lip_up_factor=1.):
+    def __init__(self, encoder, decoder):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.n_latents = self.decoder.n_latents
-        self.lip_up_factor = lip_up_factor
 
     def forward(self, inputs):
         z = self.encoder(inputs - 0.5)[:, :, None, None]
-        rec = self.decoder(z) * self.lip_up_factor
+        rec = self.decoder(z)
         return rec, z, torch.ones_like(z)
 
 

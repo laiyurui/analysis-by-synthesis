@@ -152,10 +152,11 @@ class ABS(nn.Module):
     and can be used for training."""
 
     def __init__(self, n_classes, beta, color=False, logit_scale=1.,
-                 base_model_f=VAE):
+                 base_model_f=VAE, loss_f='vae'):
         super().__init__()
 
         self.beta = beta
+        self.loss_f = loss_f
         self.base_models = nn.ModuleList([base_model_f() for _ in range(n_classes)])
         # self.logit_scale = nn.Parameter(torch.tensor(logit_scale))
         
@@ -166,7 +167,8 @@ class ABS(nn.Module):
         outputs = [base_model(x) for base_model in self.base_models]
         recs, mus, logvars = zip(*outputs)
         recs, mus, logvars = torch.stack(recs), torch.stack(mus), torch.stack(logvars)
-        losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta)
+        losses = [samplewise_loss_function(x, recs.detach(), mus.detach(), logvars.detach(), self.beta,
+                                           loss_f=self.loss_f)
                   for recs, mus, logvars in outputs]
         losses = torch.stack(losses)
         assert losses.dim() == 2

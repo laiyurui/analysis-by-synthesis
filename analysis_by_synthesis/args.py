@@ -20,7 +20,7 @@ def get_args(ipynb=None):
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--lr', type=float, default=3e-3, metavar='alpha',
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='alpha',
                         help='learning rate for training')
 
     # control loss function
